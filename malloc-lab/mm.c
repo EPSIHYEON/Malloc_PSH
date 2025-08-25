@@ -66,37 +66,38 @@ team_t team = {
 
 static char *heap_listp = NULL; //정밀함을 위해 1바이트씩 움직이는 char 형으로 설정(define 때문에 특정 경우에서는 바뀜)
 
-static char *last_ptr= NULL;
 
 //explicit 용 변수 
 static char *free_listp = NULL;
+
 
 /*
  * mm_init - initialize the malloc package.
  */
 
-// static void *find_fit(size_t size);
-// static void *place(void *ptr, size_t size);
-// static void *extend_heap(size_t words);
-// static void *coalesce(void *ptr);
+static void *find_fit(size_t size);
+static void *place(void *ptr, size_t size);
+static void *extend_heap(size_t words);
+static void *coalesce(void *ptr);
 
-// int mm_init(void)
-// {
-//     if((heap_listp = mem_sbrk(4 * WSIZE)) == (void *)-1)
-//     return -1;
+int mm_init(void)
+{
+    if((heap_listp = mem_sbrk(6 * WSIZE)) == (void *)-1)
+    return -1;
 
-//     PUT(heap_listp, 0);
-//     PUT(heap_listp + (1 * WSIZE), PACK(DSIZE,1)); //프롤로그 헤더 (이 메모리는 DSIZE 크기이고 할당되어있습니다)
-//     PUT(heap_listp + (2*WSIZE), PACK(DSIZE,1)); //프롤로그 푸터
-//     PUT(heap_listp + (3 * WSIZE), PACK(0,1)); //에필로그 헤더 
-//     heap_listp += (2 * WSIZE);// 비어있는 payload 부터 시작.
+    PUT(heap_listp, 0);
+    PUT(heap_listp + (1 * WSIZE), PACK(DSIZE,1)); //프롤로그 헤더 (이 메모리는 DSIZE 크기이고 할당되어있습니다)
+    PUT(heap_listp + (2*WSIZE), NULL); //First PREDPR
+    PUT(heap_listp + (3* WSIZE), NULL); //First SUCCPR
+    PUT(heap_listp + (4*WSIZE), PACK(DSIZE,1)); //프롤로그 푸터
+    PUT(heap_listp + (5 * WSIZE), PACK(0,1)); //에필로그 헤더 
+    free_listp = heap_listp + DSIZE;
+
+    //아마 언더플로우 때문에 패딩을 넣는 이유도 있을듯
 
 
-//     //아마 언더플로우 때문에 패딩을 넣는 이유도 있을듯
-
-
-//     return 0;
-// }
+    return 0;
+}
 
 // static void *extend_heap(size_t words){
 //     char *ptr;
@@ -410,5 +411,7 @@ static char *free_listp = NULL;
 
 
 // -------------------------------------------------- Explicit -----------------------------------------------------------
+
+
 
 
