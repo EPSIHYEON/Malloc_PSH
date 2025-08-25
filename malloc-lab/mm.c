@@ -96,7 +96,8 @@ int mm_init(void)
     PUT(heap_listp + (3* WSIZE), NULL); //First SUCCPR
     PUT(heap_listp + (4*WSIZE), PACK(4 * WSIZE,1)); //프롤로그 푸터
     PUT(heap_listp + (5 * WSIZE), PACK(0,1)); //에필로그 헤더 
-    free_listp = heap_listp + DSIZE;
+    free_listp = NULL;
+    heap_listp += (4*WSIZE);
 
     //아마 언더플로우 때문에 패딩을 넣는 이유도 있을듯
     if (extend_heap(CHUNKSIZE / WSIZE) == NULL) // word가 몇개인지 확인해서 넣으려고(DSIZE로 나눠도 됨)
@@ -352,7 +353,7 @@ static void removeBlock(void *ptr){
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
 void *mm_realloc(void *ptr, size_t size)
-{   void *oldptr = ptr;
+ {   void *oldptr = ptr;
 
     if(ptr == NULL){
         return mm_malloc(size);
@@ -362,35 +363,34 @@ void *mm_realloc(void *ptr, size_t size)
         return NULL;
     }
 
-    if(!GET_ALLOC(HDPR(NEXT_BLKP(ptr)))){ //[CASE 1]뒤에 공간이 비어있으면 거기부터 할당(ptr에서 뒤에 연장)
-    size_t asize;
-    size_t total = GET_SIZE(HDPR(NEXT_BLKP(ptr))) + GET_SIZE(HDPR(ptr));
-    
-    if(size <= DSIZE) asize = 2*DSIZE;
-   else asize = DSIZE * ((size + (DSIZE) + (DSIZE -1)) / DSIZE); //8배수 정렬로 할당하는 식 
+//     if(!GET_ALLOC(HDPR(NEXT_BLKP(ptr)))){ //[CASE 1]뒤에 공간이 비어있으면 거기부터 할당(ptr에서 뒤에 연장)
+//     size_t asize;
+//     size_t total = GET_SIZE(HDPR(NEXT_BLKP(ptr))) + GET_SIZE(HDPR(ptr));
 
-    if(total >= asize){
-        size_t diff = total - asize;
-          
-    removeBlock(ptr);
-    if (diff < 2*DSIZE){
-        PUT(HDPR(ptr), PACK(total, 1));
-        PUT(FTPR(ptr), PACK(total, 1));
-        removeBlock(NEXT_BLKP(ptr));
+//     if(size <= DSIZE) asize = 2*DSIZE;
+//    else asize = DSIZE * ((size + (DSIZE) + (DSIZE -1)) / DSIZE); //8배수 정렬로 할당하는 식 
 
-    }else{
-        PUT(HDPR(ptr), PACK(asize, 1));
-        PUT(FTPR(ptr), PACK(asize, 1));
+//     if(total >= asize){
+//         size_t diff = total - asize;
+//         removeBlock(NEXT_BLKP(ptr));  
 
-        PUT(HDPR(NEXT_BLKP(ptr)), PACK(diff,0));
-        PUT(FTPR(NEXT_BLKP(ptr)), PACK(diff,0)); 
-        putFreeBlock(NEXT_BLKP(ptr));
-    }
+//     if (diff < 2*DSIZE){
+//         PUT(HDPR(ptr), PACK(total, 1));
+//         PUT(FTPR(ptr), PACK(total, 1));
+       
+//     }else{
+//         PUT(HDPR(ptr), PACK(asize, 1));
+//         PUT(FTPR(ptr), PACK(asize, 1));
+
+//         PUT(HDPR(NEXT_BLKP(ptr)), PACK(diff,0));
+//         PUT(FTPR(NEXT_BLKP(ptr)), PACK(diff,0)); 
+//         putFreeBlock(NEXT_BLKP(ptr));
+//     }
   
 
-    return ptr;
-    }
-    }
+//     return ptr;
+//     }
+// }
 
     void *newptr = mm_malloc(size); // [CASE 2]없으면 새로운 공간 할당해서 거기서 realloc
 
@@ -406,6 +406,7 @@ void *mm_realloc(void *ptr, size_t size)
     return newptr;
 
 }
+
 
 
 
