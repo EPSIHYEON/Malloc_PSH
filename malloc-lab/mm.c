@@ -79,7 +79,7 @@ static char *free_listp = NULL;
  */
 
 static void *find_fit(size_t size);
-static void *place(void *ptr, size_t size);
+static void place(void *ptr, size_t size);
 static void *extend_heap(size_t words);
 static void *coalesce(void *ptr);
 static void removeBlock(void *ptr);
@@ -129,9 +129,9 @@ void *mm_malloc(size_t size)
 {
    size_t asize;
    size_t extendsize;
-   char *ptr;
+   void *ptr;
 
-   if(size == 0)
+   if(size <= 0) //** */
    return NULL;
 
    if(size <= DSIZE)
@@ -179,7 +179,7 @@ static void *coalesce(void *ptr){
         removeBlock(PREV_BLKP(ptr));
         size += GET_SIZE(FTPR(PREV_BLKP(ptr)));
         PUT(FTPR(ptr), PACK(size, 0));
-        PUT(HDPR(PREV_BLKP(ptr)), PACK(size, 0));
+        PUT(HDPR(PREV_BLKP(ptr)), PACK(size, 0)); //**** */
         ptr = PREV_BLKP(ptr);
     }
     else if(prev_alloc && !next_alloc){//1, 0 **조금 특이함 HDPR 때문에 FTPR 가 영향을 받아서 NEXT_PTR 가 아님 
@@ -205,14 +205,20 @@ static void *coalesce(void *ptr){
 }
 
 static void putFreeBlock(void *ptr){
-    void *old_ptr = free_listp;
+    // void *old_ptr = free_listp;
 
-    free_listp = ptr;
+    // free_listp = ptr;
+    // PREDPR(ptr) = NULL;
+    // SUCCPR(ptr) = old_ptr;
+    // if(old_ptr != NULL){
+    //     PREDPR(old_ptr) = ptr;
+    // }
+
+    SUCCPR(ptr) = free_listp;
     PREDPR(ptr) = NULL;
-    SUCCPR(ptr) = old_ptr;
-    if(old_ptr != NULL){
-        PREDPR(old_ptr) = ptr;
-    }
+    if (free_listp != NULL)
+        PREDPR(free_listp) = ptr;
+    free_listp = ptr;
 
 }
 
@@ -296,7 +302,7 @@ static void *find_fit(size_t asize){
 // }
 
 
-static void *place(void *ptr, size_t asize){
+static void place(void *ptr, size_t asize){
     size_t csize = GET_SIZE(HDPR(ptr));
     size_t diff = csize - asize;
     removeBlock(ptr);
@@ -315,21 +321,26 @@ static void *place(void *ptr, size_t asize){
     }
 
 
-
-    return ptr;
-
 }
 
 
 static void removeBlock(void *ptr){
  // 첫 번째 블록을 없앨 때
-    if(ptr == free_listp){
-        PREDPR(SUCCPR(ptr)) = NULL;
-        free_listp = SUCCPR(ptr);
-    }else{
+    // if(ptr == free_listp){
+    //     PREDPR(SUCCPR(ptr)) = NULL;
+    //     free_listp = SUCCPR(ptr);
+    // }else{
+    //     SUCCPR(PREDPR(ptr)) = SUCCPR(ptr);
+    //     PREDPR(SUCCPR(ptr)) = PREDPR(ptr);
+    // }
+
+ if (PREDPR(ptr))
         SUCCPR(PREDPR(ptr)) = SUCCPR(ptr);
+    else
+        free_listp = SUCCPR(ptr);
+
+    if (SUCCPR(ptr))
         PREDPR(SUCCPR(ptr)) = PREDPR(ptr);
-    }
 
     
     }
@@ -360,11 +371,12 @@ void *mm_realloc(void *ptr, size_t size)
 
     if(total >= asize){
         size_t diff = total - asize;
-        removeBlock(ptr);
-
+          
+    removeBlock(ptr);
     if (diff < 2*DSIZE){
         PUT(HDPR(ptr), PACK(total, 1));
         PUT(FTPR(ptr), PACK(total, 1));
+        removeBlock(NEXT_BLKP(ptr));
 
     }else{
         PUT(HDPR(ptr), PACK(asize, 1));
@@ -374,7 +386,7 @@ void *mm_realloc(void *ptr, size_t size)
         PUT(FTPR(NEXT_BLKP(ptr)), PACK(diff,0)); 
         putFreeBlock(NEXT_BLKP(ptr));
     }
-    
+  
 
     return ptr;
     }
