@@ -31,8 +31,8 @@ team_t team = {
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 
 #define PACK(size, alloc) ((size) | (alloc)) //헤더, 푸터 안에 들어갈 정보
-#define PUT(p,val) (*(size_t *)(p) = (val)) // 포인터안에 값을 넣는다
-#define  GET(p)  (*(size_t*) (p)) //포인터 안에 있는 "값"을 읽어온다 
+#define PUT(p,val) (*(unsigned int *)(p) = (val)) // 포인터안에 값을 넣는다
+#define  GET(p)  (*(unsigned int*) (p)) //포인터 안에 있는 "값"을 읽어온다 
 
 
 #define GET_SIZE(p) (GET(p) & ~0x7) //크기
@@ -72,6 +72,7 @@ static char *heap_listp = NULL; //정밀함을 위해 1바이트씩 움직이는
 
 //explicit 용 변수 
 static char *free_listp = NULL;
+//static char *last_ptr = NULL;
 
 
 /*
@@ -206,95 +207,91 @@ static void *coalesce(void *ptr){
 }
 
 static void putFreeBlock(void *ptr){
-    // void *old_ptr = free_listp;
+    void *old_ptr = free_listp;
 
-    // free_listp = ptr;
-    // PREDPR(ptr) = NULL;
-    // SUCCPR(ptr) = old_ptr;
-    // if(old_ptr != NULL){
-    //     PREDPR(old_ptr) = ptr;
-    // }
-
-    SUCCPR(ptr) = free_listp;
-    PREDPR(ptr) = NULL;
-    if (free_listp != NULL)
-        PREDPR(free_listp) = ptr;
     free_listp = ptr;
+    PREDPR(ptr) = NULL;
+    SUCCPR(ptr) = old_ptr;
+    if(old_ptr != NULL){
+        PREDPR(old_ptr) = ptr;
+    }
+
+    //last_ptr = free_listp;
 
 }
 
 // //first fit
+// static void *find_fit(size_t asize){
+//     char *ptr = free_listp;
+
+
+//     while(ptr != NULL){ //에필로그 헤더까지 돔
+
+//         if(GET_SIZE(HDPR(ptr)) >= asize){
+//             return ptr;
+//         }
+
+//         ptr = SUCCPR(ptr);
+
+//     }
+
+//     return NULL;
+
+// }
+
+//Best fit
 static void *find_fit(size_t asize){
+
     char *ptr = free_listp;
+    char *maxptr =NULL;
 
 
     while(ptr != NULL){ //에필로그 헤더까지 돔
 
         if(GET_SIZE(HDPR(ptr)) >= asize){
-            return ptr;
+            if(maxptr == NULL || GET_SIZE((ptr)) < GET_SIZE(HDPR(maxptr))){
+                maxptr = ptr;
+
+            }
         }
 
         ptr = SUCCPR(ptr);
 
     }
 
-    return NULL;
+
+    return maxptr;
 
 }
-
-// //Best fit
-// // static void *find_fit(size_t asize){
-
-// //     char *ptr = heap_listp;
-// //     char *maxptr =NULL;
-
-
-// //     while(GET_SIZE(HDPR(ptr)) > 0 ){ //에필로그 헤더까지 돔
-
-// //         if(GET_SIZE(HDPR(ptr)) >= asize && !GET_ALLOC(HDPR(ptr))){
-// //             if(maxptr == NULL || GET_SIZE((ptr)) < GET_SIZE(HDPR(maxptr))){
-// //                 maxptr = ptr;
-
-// //             }
-// //         }
-
-// //         ptr = NEXT_BLKP(ptr);
-
-// //     }
-
-
-// //     return maxptr;
-
-// // }
 
 // //NextFit
 // static void *find_fit(size_t asize){
 //     char *ptr;
 
 //     if(last_ptr == NULL){
-//         last_ptr = heap_listp;
+//         last_ptr = free_listp;
 //     }
 
 //     ptr = last_ptr;
 
-//     while(GET_SIZE(HDPR(ptr)) > 0 ){ //에필로그 헤더까지 돔
+//     while(ptr != NULL){ 
 
-//         if(GET_SIZE(HDPR(ptr)) >= asize && !GET_ALLOC(HDPR(ptr))){
+//         if(GET_SIZE(HDPR(ptr)) >= asize){
 //             last_ptr = ptr;
 //             return ptr;
 //         }
 
-//         ptr = NEXT_BLKP(ptr);
+//         ptr = SUCCPR(ptr);
 //     }
 
-//     ptr = heap_listp;
+//     ptr = free_listp;
 //     while(ptr != last_ptr){
-//         if(GET_SIZE(HDPR(ptr)) >= asize && !GET_ALLOC(HDPR(ptr))){
+//         if(GET_SIZE(HDPR(ptr)) >= asize){
 //         last_ptr = ptr;
 //         return ptr;
 //         }
 
-//         ptr = NEXT_BLKP(ptr);
+//         ptr = SUCCPR(ptr);
 //     }
 
 
@@ -334,11 +331,14 @@ static void removeBlock(void *ptr){
     //     SUCCPR(PREDPR(ptr)) = SUCCPR(ptr);
     //     PREDPR(SUCCPR(ptr)) = PREDPR(ptr);
     // }
-
- if (PREDPR(ptr))
+ if (PREDPR(ptr)){
+        //last_ptr = PREDPR(ptr);
         SUCCPR(PREDPR(ptr)) = SUCCPR(ptr);
-    else
+ }
+    else{
         free_listp = SUCCPR(ptr);
+        //last_ptr = SUCCPR(ptr);
+    }
 
     if (SUCCPR(ptr))
         PREDPR(SUCCPR(ptr)) = PREDPR(ptr);
