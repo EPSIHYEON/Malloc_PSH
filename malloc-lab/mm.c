@@ -72,7 +72,7 @@ static char *heap_listp = NULL; //정밀함을 위해 1바이트씩 움직이는
 
 //explicit 용 변수 
 static char *free_listp = NULL;
-//static char *last_ptr = NULL;
+static char *last_ptr = NULL;
 
 
 /*
@@ -109,6 +109,7 @@ int mm_init(void)
 
 static void *extend_heap(size_t words){
     char *ptr;
+    
     size_t size;
 
     size = (words % 2) ? (words + 1) * WSIZE : words * WSIZE;  //홀수면, 짝수면
@@ -206,6 +207,7 @@ static void *coalesce(void *ptr){
     return ptr;
 }
 
+//LIFO 방식 
 static void putFreeBlock(void *ptr){
     void *old_ptr = free_listp;
 
@@ -219,6 +221,44 @@ static void putFreeBlock(void *ptr){
     //last_ptr = free_listp;
 
 }
+
+
+static void putFreeBlock(void *ptr){
+    void *curr = free_listp;
+    void *prev = NULL;
+
+    if(free_listp == NULL){
+        free_listp = ptr;
+        PREDPR(ptr) = NULL;
+        SUCCPR(ptr) = NULL;
+        return;
+    }
+
+    while(curr !=NULL && curr < ptr){
+        prev = curr;
+        curr = SUCCPR(curr);
+    }
+
+
+    SUCCPR(ptr) = curr;
+    PREDPR(ptr) = prev;
+
+    if(curr != NULL){
+        PREDPR(curr) = ptr;
+    }
+    
+
+    if(prev != NULL){
+        SUCCPR(prev) = ptr;
+    }else{
+        free_listp = ptr;
+    }
+
+
+    //last_ptr = free_listp;
+
+}
+
 
 // //first fit
 // static void *find_fit(size_t asize){
@@ -240,64 +280,64 @@ static void putFreeBlock(void *ptr){
 // }
 
 //Best fit
+// static void *find_fit(size_t asize){
+
+//     char *ptr = free_listp;
+//     char *maxptr =NULL;
+
+
+//     while(ptr != NULL){ //에필로그 헤더까지 돔
+
+//         if(GET_SIZE(HDPR(ptr)) >= asize){
+//             if(maxptr == NULL || GET_SIZE((ptr)) < GET_SIZE(HDPR(maxptr))){
+//                 maxptr = ptr;
+
+//             }
+//         }
+
+//         ptr = SUCCPR(ptr);
+
+//     }
+
+
+//     return maxptr;
+
+// }
+
+// //NextFit
 static void *find_fit(size_t asize){
+    char *ptr;
 
-    char *ptr = free_listp;
-    char *maxptr =NULL;
+    if(last_ptr == NULL){
+        last_ptr = free_listp;
+    }
 
+    ptr = last_ptr;
 
-    while(ptr != NULL){ //에필로그 헤더까지 돔
+    while(ptr != NULL){ 
 
         if(GET_SIZE(HDPR(ptr)) >= asize){
-            if(maxptr == NULL || GET_SIZE((ptr)) < GET_SIZE(HDPR(maxptr))){
-                maxptr = ptr;
-
-            }
+            last_ptr = ptr;
+            return ptr;
         }
 
         ptr = SUCCPR(ptr);
+    }
 
+    ptr = free_listp;
+    while(ptr != last_ptr){
+        if(GET_SIZE(HDPR(ptr)) >= asize){
+        last_ptr = ptr;
+        return ptr;
+        }
+
+        ptr = SUCCPR(ptr);
     }
 
 
-    return maxptr;
+    return NULL;
 
 }
-
-// //NextFit
-// static void *find_fit(size_t asize){
-//     char *ptr;
-
-//     if(last_ptr == NULL){
-//         last_ptr = free_listp;
-//     }
-
-//     ptr = last_ptr;
-
-//     while(ptr != NULL){ 
-
-//         if(GET_SIZE(HDPR(ptr)) >= asize){
-//             last_ptr = ptr;
-//             return ptr;
-//         }
-
-//         ptr = SUCCPR(ptr);
-//     }
-
-//     ptr = free_listp;
-//     while(ptr != last_ptr){
-//         if(GET_SIZE(HDPR(ptr)) >= asize){
-//         last_ptr = ptr;
-//         return ptr;
-//         }
-
-//         ptr = SUCCPR(ptr);
-//     }
-
-
-//     return NULL;
-
-// }
 
 
 static void place(void *ptr, size_t asize){
@@ -323,21 +363,13 @@ static void place(void *ptr, size_t asize){
 
 
 static void removeBlock(void *ptr){
- // 첫 번째 블록을 없앨 때
-    // if(ptr == free_listp){
-    //     PREDPR(SUCCPR(ptr)) = NULL;
-    //     free_listp = SUCCPR(ptr);
-    // }else{
-    //     SUCCPR(PREDPR(ptr)) = SUCCPR(ptr);
-    //     PREDPR(SUCCPR(ptr)) = PREDPR(ptr);
-    // }
  if (PREDPR(ptr)){
-        //last_ptr = PREDPR(ptr);
+        last_ptr = PREDPR(ptr);
         SUCCPR(PREDPR(ptr)) = SUCCPR(ptr);
  }
     else{
         free_listp = SUCCPR(ptr);
-        //last_ptr = SUCCPR(ptr);
+        last_ptr = SUCCPR(ptr);
     }
 
     if (SUCCPR(ptr))
@@ -363,34 +395,34 @@ void *mm_realloc(void *ptr, size_t size)
         return NULL;
     }
 
-//     if(!GET_ALLOC(HDPR(NEXT_BLKP(ptr)))){ //[CASE 1]뒤에 공간이 비어있으면 거기부터 할당(ptr에서 뒤에 연장)
-//     size_t asize;
-//     size_t total = GET_SIZE(HDPR(NEXT_BLKP(ptr))) + GET_SIZE(HDPR(ptr));
+    if(!GET_ALLOC(HDPR(NEXT_BLKP(ptr)))){ //[CASE 1]뒤에 공간이 비어있으면 거기부터 할당(ptr에서 뒤에 연장)
+    size_t asize;
+    size_t total = GET_SIZE(HDPR(NEXT_BLKP(ptr))) + GET_SIZE(HDPR(ptr));
 
-//     if(size <= DSIZE) asize = 2*DSIZE;
-//    else asize = DSIZE * ((size + (DSIZE) + (DSIZE -1)) / DSIZE); //8배수 정렬로 할당하는 식 
+    if(size <= DSIZE) asize = 2*DSIZE;
+   else asize = DSIZE * ((size + (DSIZE) + (DSIZE -1)) / DSIZE); //8배수 정렬로 할당하는 식 
 
-//     if(total >= asize){
-//         size_t diff = total - asize;
-//         removeBlock(NEXT_BLKP(ptr));  
+    if(total >= asize){
+        size_t diff = total - asize;
+        removeBlock(NEXT_BLKP(ptr));  
 
-//     if (diff < 2*DSIZE){
-//         PUT(HDPR(ptr), PACK(total, 1));
-//         PUT(FTPR(ptr), PACK(total, 1));
+    if (diff < 2*DSIZE){
+        PUT(HDPR(ptr), PACK(total, 1));
+        PUT(FTPR(ptr), PACK(total, 1));
        
-//     }else{
-//         PUT(HDPR(ptr), PACK(asize, 1));
-//         PUT(FTPR(ptr), PACK(asize, 1));
+    }else{
+        PUT(HDPR(ptr), PACK(asize, 1));
+        PUT(FTPR(ptr), PACK(asize, 1));
 
-//         PUT(HDPR(NEXT_BLKP(ptr)), PACK(diff,0));
-//         PUT(FTPR(NEXT_BLKP(ptr)), PACK(diff,0)); 
-//         putFreeBlock(NEXT_BLKP(ptr));
-//     }
+        PUT(HDPR(NEXT_BLKP(ptr)), PACK(diff,0));
+        PUT(FTPR(NEXT_BLKP(ptr)), PACK(diff,0)); 
+        putFreeBlock(NEXT_BLKP(ptr));
+    }
   
 
-//     return ptr;
-//     }
-// }
+    return ptr;
+    }
+}
 
     void *newptr = mm_malloc(size); // [CASE 2]없으면 새로운 공간 할당해서 거기서 realloc
 
